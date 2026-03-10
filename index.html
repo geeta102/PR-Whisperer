@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PR Whisperer — AI Code Review</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; min-height: 100vh; }
+
+/* HEADER */
+header {
+  background: linear-gradient(135deg, #0078D4 0%, #005a9e 100%);
+  padding: 18px 40px;
+  display: flex; align-items: center;
+  box-shadow: 0 2px 20px rgba(0,120,212,0.4);
+}
+.header-left { display: flex; align-items: center; gap: 14px; }
+.logo { font-size: 28px; }
+.header-title h1 { font-size: 22px; color: white; font-weight: 700; }
+.header-title p { font-size: 12px; color: #cde4ff; margin-top: 2px; }
+
+/* MAIN LAYOUT */
+.container { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
+
+/* CARDS */
+.card {
+  background: #1a1d27; border: 1px solid #2a2d3e;
+  border-radius: 14px; padding: 24px; margin-bottom: 24px;
+}
+.card-title {
+  font-size: 11px; font-weight: 700; color: #0078D4;
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title::after {
+  content: ''; flex: 1; height: 1px; background: #2a2d3e;
+}
+
+/* INPUT AREA */
+.input-row { display: flex; gap: 12px; margin-bottom: 14px; align-items: center; }
+select {
+  background: #12151f; color: #e0e0e0; border: 1px solid #2a2d3e;
+  border-radius: 8px; padding: 9px 14px; font-size: 13px; cursor: pointer;
+}
+select:focus { outline: none; border-color: #0078D4; }
+
+.input-hint { font-size: 12px; color: #555; }
+
+textarea {
+  width: 100%; background: #12151f; color: #c9d1d9;
+  border: 1px solid #2a2d3e; border-radius: 10px;
+  padding: 16px; font-family: 'Courier New', monospace;
+  font-size: 13px; resize: vertical; min-height: 220px;
+  line-height: 1.6; transition: border-color 0.2s;
+}
+textarea:focus { outline: none; border-color: #0078D4; }
+
+/* REVIEW BUTTON */
+#reviewBtn {
+  width: 100%; margin-top: 14px;
+  background: linear-gradient(135deg, #0078D4, #005a9e);
+  color: white; border: none; border-radius: 10px;
+  padding: 14px; font-size: 16px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; letter-spacing: 0.3px;
+}
+#reviewBtn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,120,212,0.4); }
+#reviewBtn:disabled { background: #2a2d3e; color: #555; transform: none; box-shadow: none; cursor: not-allowed; }
+
+/* LOADING */
+.loading-card {
+  background: #1a1d27; border: 1px solid #0078D4;
+  border-radius: 14px; padding: 32px; text-align: center;
+  display: none;
+}
+.spinner {
+  width: 40px; height: 40px; border: 3px solid #2a2d3e;
+  border-top-color: #0078D4; border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { color: #7eb8f7; font-size: 15px; font-weight: 600; }
+.loading-sub { color: #555; font-size: 12px; margin-top: 6px; }
+
+/* SCORE SECTION */
+.score-wrapper { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+
+.score-circle-wrap { text-align: center; flex-shrink: 0; }
+.score-circle {
+  width: 120px; height: 120px; border-radius: 50%;
+  border: 6px solid #0078D4; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; margin: 0 auto;
+  transition: all 0.5s;
+}
+.score-circle.great { border-color: #2ecc71; }
+.score-circle.ok    { border-color: #f39c12; }
+.score-circle.poor  { border-color: #e74c3c; }
+.score-num { font-size: 36px; font-weight: 800; line-height: 1; }
+.score-circle.great .score-num { color: #2ecc71; }
+.score-circle.ok    .score-num { color: #f39c12; }
+.score-circle.poor  .score-num { color: #e74c3c; }
+.score-denom { font-size: 12px; color: #666; }
+.score-label-text { font-size: 13px; color: #aaa; margin-top: 8px; font-weight: 600; }
+
+.score-right { flex: 1; min-width: 260px; }
+
+.breakdown-grid { display: grid; gap: 10px; margin-bottom: 16px; }
+.breakdown-row { display: flex; align-items: center; gap: 10px; }
+.breakdown-label { width: 120px; font-size: 13px; color: #aaa; }
+.bar-bg { flex: 1; background: #2a2d3e; border-radius: 6px; height: 10px; overflow: hidden; }
+.bar-fill { height: 10px; border-radius: 6px; width: 0%; transition: width 0.8s ease; }
+.bar-security    { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+.bar-performance { background: linear-gradient(90deg, #f39c12, #d68910); }
+.bar-readability { background: linear-gradient(90deg, #3498db, #2980b9); }
+.bar-convention  { background: linear-gradient(90deg, #2ecc71, #27ae60); }
+.bar-val { width: 36px; font-size: 12px; color: #ccc; text-align: right; font-weight: 600; }
+
+.summary-box {
+  background: #12151f; border-radius: 8px; padding: 14px;
+  font-size: 13px; color: #bbb; line-height: 1.7; border-left: 3px solid #0078D4;
+}
+
+/* POSITIVE NOTES */
+.positives { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.positive-tag {
+  background: #0d2b1a; border: 1px solid #1a5c35; border-radius: 20px;
+  padding: 5px 14px; font-size: 12px; color: #2ecc71;
+}
+
+/* ISSUE CARDS */
+.issue {
+  border-radius: 10px; background: #12151f;
+  border: 1px solid #2a2d3e; border-left: 4px solid #444;
+  padding: 16px; margin-bottom: 14px; transition: border-color 0.2s;
+}
+.issue.High   { border-left-color: #e74c3c; }
+.issue.Medium { border-left-color: #f39c12; }
+.issue.Low    { border-left-color: #3498db; }
+
+.issue-header { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px; text-transform: uppercase; }
+.badge-Security    { background: #2d0f0f; color: #e74c3c; }
+.badge-Performance { background: #2d1f00; color: #f39c12; }
+.badge-Readability { background: #0d1f35; color: #3498db; }
+.badge-Convention  { background: #0d2b1a; color: #2ecc71; }
+.badge-High   { background: #3d1515; color: #e74c3c; border: 1px solid #5a1f1f; }
+.badge-Medium { background: #3d2e00; color: #f39c12; border: 1px solid #5a4400; }
+.badge-Low    { background: #0d2b3e; color: #3498db; border: 1px solid #1a4060; }
+.issue-hint { font-size: 11px; color: #555; margin-left: auto; font-style: italic; }
+
+.issue-problem {
+  font-size: 13px; color: #ddd; margin-bottom: 12px; line-height: 1.6;
+  padding: 8px 12px; background: #1a1a1a; border-radius: 6px;
+}
+
+/* INLINE FIX SECTION */
+.fix-section { border-radius: 8px; overflow: hidden; border: 1px solid #2a2d3e; }
+.fix-header { display: flex; background: #1a1d27; padding: 0; }
+.fix-tab {
+  flex: 1; padding: 8px 14px; font-size: 12px; font-weight: 600;
+  text-align: center; color: #666; cursor: default;
+  border-bottom: 2px solid transparent;
+}
+.fix-tab.before { border-bottom-color: #e74c3c; color: #e74c3c; }
+.fix-tab.after  { border-bottom-color: #2ecc71; color: #2ecc71; }
+
+.fix-codes { display: grid; grid-template-columns: 1fr 1fr; }
+.fix-code-block { position: relative; }
+.fix-code-block pre {
+  background: #0d0f17; margin: 0; padding: 14px;
+  font-family: 'Courier New', monospace; font-size: 12px;
+  color: #c9d1d9; white-space: pre-wrap; word-break: break-all;
+  min-height: 60px; line-height: 1.6;
+}
+.fix-code-block.before pre { border-right: 1px solid #2a2d3e; background: #1a0a0a; color: #ff8888; }
+.fix-code-block.after  pre { background: #0a1a0a; color: #88ff88; }
+
+.copy-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: #0078D4; color: white; border: none;
+  border-radius: 6px; padding: 4px 10px; font-size: 11px;
+  cursor: pointer; font-weight: 600; transition: all 0.2s;
+  opacity: 0;
+}
+.fix-code-block:hover .copy-btn { opacity: 1; }
+.copy-btn:hover { background: #005a9e; }
+.copy-btn.copied { background: #2ecc71; }
+
+/* STATS BAR */
+.stats-bar {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  background: #12151f; border-radius: 10px; padding: 14px 18px;
+  margin-bottom: 20px;
+}
+.stat-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.stat-dot { width: 10px; height: 10px; border-radius: 50%; }
+.stat-dot.high   { background: #e74c3c; }
+.stat-dot.medium { background: #f39c12; }
+.stat-dot.low    { background: #3498db; }
+.stat-count { font-weight: 700; color: white; }
+.stat-label { color: #666; }
+
+.no-issues {
+  text-align: center; padding: 32px; color: #2ecc71;
+  font-size: 16px; font-weight: 600;
+}
+.no-issues p { color: #555; font-size: 13px; margin-top: 6px; font-weight: 400; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo">&#128269;</div>
+    <div class="header-title">
+      <h1>PR Whisperer</h1>
+      <p>AI-Powered Code Review Before You Submit</p>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- INPUT CARD -->
+  <div class="card">
+    <div class="card-title">&#128203; Paste Your Code Diff</div>
+    <div class="input-row">
+      <select id="language">
+        <option value="auto">&#127760; Auto-detect language</option>
+        <option value="JavaScript">JavaScript</option>
+        <option value="Python">Python</option>
+        <option value="TypeScript">TypeScript</option>
+        <option value="Java">Java</option>
+        <option value="C++">C++</option>
+        <option value="Go">Go</option>
+        <option value="Ruby">Ruby</option>
+        <option value="PHP">PHP</option>
+      </select>
+      <span class="input-hint">Tip: Paste a git diff, or just paste the changed code block</span>
+    </div>
+    <textarea id="diffInput" placeholder="Paste your git diff or changed code here...
+
+Example diff to try:
+- const password = 'admin123'
+- const query = 'SELECT * FROM users WHERE id = ' + userId
+- for (let i = 0; i < array.length; i++) {
+-   result.push(array[i] * 2)
+- }
++ const query = 'SELECT * FROM users WHERE id = ?'
++ db.execute(query, [userId])
++ const result = array.map(item => item * 2)"></textarea>
+    <button id="reviewBtn" onclick="reviewCode()"> Review My Code </button>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading-card" id="loadingDiv">
+    <div class="spinner"></div>
+    <div class="loading-text">Analyzing your code with AI...</div>
+    <div class="loading-sub">Checking Security &middot; Performance &middot; Readability &middot; Conventions</div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results" style="display:none">
+
+    <!-- SCORE CARD -->
+    <div class="card">
+      <div class="card-title">&#127919; PR Readiness Score</div>
+      <div class="score-wrapper">
+        <div class="score-circle-wrap">
+          <div class="score-circle" id="scoreCircle">
+            <span class="score-num" id="scoreNum">--</span>
+            <span class="score-denom">/ 100</span>
+          </div>
+          <div class="score-label-text" id="scoreLabel">Analyzing...</div>
+        </div>
+        <div class="score-right">
+          <div class="breakdown-grid">
+            <div class="breakdown-row">
+              <span class="breakdown-label">&#128274; Security</span>
+              <div class="bar-bg"><div class="bar-fill bar-security" id="bar-security"></div></div>
+              <span class="bar-val" id="val-security">--</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">&#9889; Performance</span>
+              <div class="bar-bg"><div class="bar-fill bar-performance" id="bar-performance"></div></div>
+              <span class="bar-val" id="val-performance">--</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">&#128214; Readability</span>
+              <div class="bar-bg"><div class="bar-fill bar-readability" id="bar-readability"></div></div>
+              <span class="bar-val" id="val-readability">--</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="breakdown-label">&#128208; Convention</span>
+              <div class="bar-bg"><div class="bar-fill bar-convention" id="bar-convention"></div></div>
+              <span class="bar-val" id="val-convention">--</span>
+            </div>
+          </div>
+          <div class="summary-box" id="summaryText"></div>
+        </div>
+      </div>
+      <div class="positives" id="positivesList"></div>
+    </div>
+
+    <!-- ISSUES CARD -->
+    <div class="card">
+      <div class="card-title">&#128270; Detailed Review &amp; Inline Fixes</div>
+      <div class="stats-bar" id="statsBar"></div>
+      <div id="issuesList"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+
+async function reviewCode() {
+  const diff = document.getElementById('diffInput').value.trim();
+  const language = document.getElementById('language').value;
+  if (!diff) { alert('Please paste your code diff first!'); return; }
+
+  document.getElementById('reviewBtn').disabled = true;
+  document.getElementById('loadingDiv').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+
+  try {
+    const res = await fetch(`${API}/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ diff, language })
+    });
+    if (!res.ok) throw new Error('Server error: ' + res.status);
+    const data = await res.json();
+    renderResults(data);
+  } catch (e) {
+    alert('Error: ' + e.message + '\n\nMake sure the Python backend is running:\nuvicorn main:app --reload --port 8000');
+  } finally {
+    document.getElementById('reviewBtn').disabled = false;
+    document.getElementById('loadingDiv').style.display = 'none';
+  }
+}
+
+function renderResults(data) {
+  const score = Math.max(0, Math.min(100, data.score || 0));
+  document.getElementById('scoreNum').textContent = score;
+  const circle = document.getElementById('scoreCircle');
+  const labelEl = document.getElementById('scoreLabel');
+  if (score >= 80) {
+    circle.className = 'score-circle great';
+    labelEl.textContent = '✅ Ready to Ship';
+    labelEl.style.color = '#2ecc71';
+  } else if (score >= 55) {
+    circle.className = 'score-circle ok';
+    labelEl.textContent = '⚠️ Needs Work';
+    labelEl.style.color = '#f39c12';
+  } else {
+    circle.className = 'score-circle poor';
+    labelEl.textContent = '❌ Not Ready';
+    labelEl.style.color = '#e74c3c';
+  }
+
+  const bd = data.score_breakdown || {};
+  ['security','performance','readability','convention'].forEach(k => {
+    const v = Math.max(0, Math.min(25, bd[k] ?? 0));
+    setTimeout(() => {
+      document.getElementById(`bar-${k}`).style.width = (v / 25 * 100) + '%';
+    }, 100);
+    document.getElementById(`val-${k}`).textContent = v + '/25';
+  });
+
+  document.getElementById('summaryText').textContent = data.summary || '';
+
+  const posEl = document.getElementById('positivesList');
+  posEl.innerHTML = '';
+  (data.positive_notes || []).forEach(note => {
+    posEl.innerHTML += `<span class="positive-tag">👍 ${note}</span>`;
+  });
+
+  const issues = data.issues || [];
+  const high   = issues.filter(i => i.severity === 'High').length;
+  const medium = issues.filter(i => i.severity === 'Medium').length;
+  const low    = issues.filter(i => i.severity === 'Low').length;
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat-item"><div class="stat-dot high"></div><span class="stat-count">${high}</span><span class="stat-label">High</span></div>
+    <div class="stat-item"><div class="stat-dot medium"></div><span class="stat-count">${medium}</span><span class="stat-label">Medium</span></div>
+    <div class="stat-item"><div class="stat-dot low"></div><span class="stat-count">${low}</span><span class="stat-label">Low</span></div>
+    <div class="stat-item" style="margin-left:auto"><span class="stat-label">${issues.length} issue${issues.length !== 1 ? 's' : ''} found</span></div>
+  `;
+
+  const list = document.getElementById('issuesList');
+  list.innerHTML = '';
+
+  if (issues.length === 0) {
+    list.innerHTML = `
+      <div class="no-issues">
+        ✅ No issues found!
+        <p>Your code looks clean across all four review dimensions.</p>
+      </div>`;
+  } else {
+    issues.forEach((issue, idx) => {
+      const hasCode = issue.original_code || issue.fixed_code;
+      list.innerHTML += `
+        <div class="issue ${issue.severity}">
+          <div class="issue-header">
+            <span class="badge badge-${issue.category}">${issue.category}</span>
+            <span class="badge badge-${issue.severity}">${issue.severity}</span>
+            <span class="issue-hint">${issue.line_hint || ''}</span>
+          </div>
+          <div class="issue-problem">❌ ${issue.problem}</div>
+          ${hasCode ? `
+          <div class="fix-section">
+            <div class="fix-header">
+              <div class="fix-tab before">❌ Before</div>
+              <div class="fix-tab after">✅ Fixed</div>
+            </div>
+            <div class="fix-codes">
+              <div class="fix-code-block before">
+                <pre>${escapeHtml(issue.original_code || '— not provided —')}</pre>
+              </div>
+              <div class="fix-code-block after">
+                <pre>${escapeHtml(issue.fixed_code || '— not provided —')}</pre>
+                <button class="copy-btn" onclick="copyFix(this, ${idx})">Copy</button>
+              </div>
+            </div>
+          </div>` : ''}
+        </div>`;
+    });
+    window._issues = issues;
+  }
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+}
+
+function copyFix(btn, idx) {
+  const code = window._issues[idx]?.fixed_code || '';
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
