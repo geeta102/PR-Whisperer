@@ -66,6 +66,30 @@ uvicorn main:app --reload --port 8000
 ### 5. Open the frontend
 Open `index.html` in your browser.
 
+
+
+## Current Limitations
+
+Since this is an early prototype, some features are not yet implemented:
+
+•⁠  ⁠GitHub PR auto-fetch integration
+•⁠  ⁠VS Code extension
+•⁠  ⁠User authentication
+•⁠  ⁠Review history storage
+•⁠  ⁠Team analytics or dashboards
+
+
+## Future Improvements
+
+Planned future iterations may include:
+
+•⁠  ⁠VS Code extension integration
+•⁠  ⁠GitHub API support to automatically fetch PR diffs
+•⁠  ⁠CI integration for automatic PR review
+•⁠  ⁠Team dashboards for analytics and coding standards
+•⁠  ⁠Improved AI models and infrastructure
+
+
 ## Project Status
 
 PR Whisperer is currently a *prototype built to demonstrate the concept of AI-assisted pull request reviews for individual developers*.
