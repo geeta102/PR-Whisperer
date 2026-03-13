@@ -2,8 +2,26 @@
 
 PR Whisperer is a *prototype AI-powered code review assistant* designed to help developers who are coding *individually without access to senior reviewers*. The goal of PR Whisperer is to give developers the experience of a *senior-level code review in seconds* before they submit a pull request.
 
+## Problem
 
-## What it does
+Many developers — especially *students, solo developers, and junior engineers* — often build projects without mentorship or a proper code review process.
+
+Some key challenges:
+
+•⁠  ⁠Many developers ship code *without sufficient code review*
+•⁠  ⁠Linters and static tools catch *syntax issues but not contextual problems*
+•⁠  ⁠Developers frequently receive *vague feedback* or discover issues only after deployment
+
+Without proper feedback:
+
+•⁠  ⁠Security vulnerabilities may reach production
+•⁠  ⁠Inefficient code patterns persist
+•⁠  ⁠Learning and growth slow down
+
+PR Whisperer attempts to address this gap by acting as an *AI senior reviewer for individual developers*.
+
+
+## Solution Overview
 
 Paste your git diff or changed code and get instant feedback across four dimensions:
 - **Security** — detects SQL injection, hardcoded secrets, insecure patterns
