@@ -1,6 +1,7 @@
 # PR Whisperer
 
-AI-powered code review tool that analyzes your code changes before you open a pull request.
+PR Whisperer is a *prototype AI-powered code review assistant* designed to help developers who are coding *individually without access to senior reviewers*. The goal of PR Whisperer is to give developers the experience of a *senior-level code review in seconds* before they submit a pull request.
+
 
 ## What it does
 
