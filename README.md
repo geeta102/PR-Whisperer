@@ -66,4 +66,10 @@ uvicorn main:app --reload --port 8000
 ### 5. Open the frontend
 Open `index.html` in your browser.
 
+## Project Status
+
+PR Whisperer is currently a *prototype built to demonstrate the concept of AI-assisted pull request reviews for individual developers*.
+
+It focuses on showcasing how AI can provide *structured feedback and actionable fixes* before code is submitted for review.
+
 
